@@ -45,7 +45,7 @@ public class UserController {
 				
 				result.put("error","User already exists");
 				logger.info("User already exists hey {{user create controller}}");
-				logger.info("##########");
+				logger.info("########## 1dev");
 				return ResponseEntity.badRequest().body(result);
 				
 			}else {
