@@ -1,0 +1,60 @@
+@Service
+public class DataService {
+
+    @Autowired
+    private MyEntityRepository myEntityRepository;
+
+    public List<MyEntity> getSortedFilteredData(GridRequest gridRequest) {
+        // Create CriteriaBuilder and CriteriaQuery for dynamic query building
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        CriteriaQuery<MyEntity> cq = cb.createQuery(MyEntity.class);
+        Root<MyEntity> root = cq.from(MyEntity.class);
+
+        // Handle sorting
+        if (gridRequest.getSortModel() != null && !gridRequest.getSortModel().isEmpty()) {
+            List<Order> orders = new ArrayList<>();
+            for (SortModel sortModel : gridRequest.getSortModel()) {
+                if ("asc".equals(sortModel.getSort())) {
+                    orders.add(cb.asc(root.get(sortModel.getColId())));
+                } else if ("desc".equals(sortModel.getSort())) {
+                    orders.add(cb.desc(root.get(sortModel.getColId())));
+                }
+            }
+            cq.orderBy(orders);
+        }
+
+        // Handle filtering
+        List<Predicate> predicates = new ArrayList<>();
+        if (gridRequest.getFilterModel() != null) {
+            for (Map.Entry<String, FilterModel> entry : gridRequest.getFilterModel().entrySet()) {
+                String field = entry.getKey();
+                FilterModel filter = entry.getValue();
+                if ("text".equals(filter.getFilterType())) {
+                    predicates.add(cb.like(root.get(field), "%" + filter.getFilter() + "%"));
+                } else if ("number".equals(filter.getFilterType())) {
+                    int filterValue = Integer.parseInt(filter.getFilter());
+                    if ("equals".equals(filter.getType())) {
+                        predicates.add(cb.equal(root.get(field), filterValue));
+                    } else if ("greaterThan".equals(filter.getType())) {
+                        predicates.add(cb.greaterThan(root.get(field), filterValue));
+                    }
+                    // Add more filter conditions if needed
+                }
+            }
+        }
+        cq.where(predicates.toArray(new Predicate[0]));
+
+        // Execute query with pagination
+        TypedQuery<MyEntity> query = entityManager.createQuery(cq);
+        query.setFirstResult(gridRequest.getStartRow());
+        query.setMaxResults(gridRequest.getEndRow() - gridRequest.getStartRow());
+
+        return query.getResultList();
+    }
+
+    public int getTotalRowCount(Map<String, FilterModel> filterModel) {
+        // This method should return the total row count based on the filters applied.
+        // Use a similar approach as in `getSortedFilteredData` to count rows.
+        return (int) myEntityRepository.count();  // Example, adjust with filter logic.
+    }
+}
